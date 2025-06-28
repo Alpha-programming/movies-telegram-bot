@@ -2,6 +2,7 @@ import psycopg2
 from pathlib import Path
 from dotenv import load_dotenv
 import os
+
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv()
 
@@ -20,8 +21,12 @@ class DatabaseConnection:
 
 class DatabaseTables(DatabaseConnection):
     def create(self, query: str) -> None:
-        self.cursor.execute(query)
-        self.connection.commit()
+        try:
+            self.cursor.execute(query)
+            self.connection.commit()
+        except Exception as e:
+            print(f"[DB ERROR] create(): {e}")
+            self.connection.rollback()
 
 
 db_table = DatabaseTables()
@@ -44,90 +49,153 @@ CREATE TABLE IF NOT EXISTS media (
 
 class AdminsRepo(DatabaseConnection):
     def get_admin(self, chat_id):
-        self.cursor.execute("SELECT id FROM admins WHERE chat_id = %s;", (chat_id,))
-        return self.cursor.fetchone()
+        try:
+            self.cursor.execute("SELECT id FROM admins WHERE chat_id = %s;", (chat_id,))
+            return self.cursor.fetchone()
+        except Exception as e:
+            print(f"[DB ERROR] get_admin(): {e}")
+            self.connection.rollback()
+            return None
 
     def add_main_admin(self, chat_id, username):
-        if self.get_admin(chat_id) is None:
-            self.cursor.execute(
-                "INSERT INTO admins(chat_id, username, role) VALUES(%s, %s, %s);",
-                (chat_id, username, 'main')
-            )
-            self.connection.commit()
+        try:
+            if self.get_admin(chat_id) is None:
+                self.cursor.execute(
+                    "INSERT INTO admins(chat_id, username, role) VALUES(%s, %s, %s);",
+                    (chat_id, username, 'main')
+                )
+                self.connection.commit()
+        except Exception as e:
+            print(f"[DB ERROR] add_main_admin(): {e}")
+            self.connection.rollback()
 
     def add_admins(self, chat_id, username, role):
-        if self.get_admin(chat_id) is None:
-            self.cursor.execute(
-                "INSERT INTO admins(chat_id, username, role) VALUES(%s, %s, %s);",
-                (chat_id, username, role)
-            )
-            self.connection.commit()
-            return True
+        try:
+            if self.get_admin(chat_id) is None:
+                self.cursor.execute(
+                    "INSERT INTO admins(chat_id, username, role) VALUES(%s, %s, %s);",
+                    (chat_id, username, role)
+                )
+                self.connection.commit()
+                return True
+        except Exception as e:
+            print(f"[DB ERROR] add_admins(): {e}")
+            self.connection.rollback()
         return False
 
     def get_admin_list(self):
-        self.cursor.execute("SELECT * FROM admins;")
-        return self.cursor.fetchall()
+        try:
+            self.cursor.execute("SELECT * FROM admins;")
+            return self.cursor.fetchall()
+        except Exception as e:
+            print(f"[DB ERROR] get_admin_list(): {e}")
+            self.connection.rollback()
+            return []
 
     def delete_admin(self, admin_id):
-        self.cursor.execute("DELETE FROM admins WHERE id = %s;", (admin_id,))
-        self.connection.commit()
-        return self.cursor.rowcount > 0
+        try:
+            self.cursor.execute("DELETE FROM admins WHERE id = %s;", (admin_id,))
+            self.connection.commit()
+            return self.cursor.rowcount > 0
+        except Exception as e:
+            print(f"[DB ERROR] delete_admin(): {e}")
+            self.connection.rollback()
+            return False
 
     def check_admin_role(self, chat_id):
-        self.cursor.execute("SELECT role FROM admins WHERE chat_id = %s;", (chat_id,))
-        result = self.cursor.fetchone()
-        return result[0] if result else None
+        try:
+            self.cursor.execute("SELECT role FROM admins WHERE chat_id = %s;", (chat_id,))
+            result = self.cursor.fetchone()
+            return result[0] if result else None
+        except Exception as e:
+            print(f"[DB ERROR] check_admin_role(): {e}")
+            self.connection.rollback()
+            return None
 
 
 class MediaRepo(DatabaseConnection):
     def media_exists(self, title, file_id):
-        self.cursor.execute(
-            "SELECT 1 FROM media WHERE title = %s OR file_id = %s;", (title, file_id)
-        )
-        return self.cursor.fetchone() is not None
+        try:
+            self.cursor.execute(
+                "SELECT 1 FROM media WHERE title = %s OR file_id = %s;", (title, file_id)
+            )
+            return self.cursor.fetchone() is not None
+        except Exception as e:
+            print(f"[DB ERROR] media_exists(): {e}")
+            self.connection.rollback()
+            return False
 
     def add_media(self, title, file_id, category, genre):
-        if self.media_exists(title, file_id):
+        try:
+            if self.media_exists(title, file_id):
+                return False
+            self.cursor.execute(
+                "INSERT INTO media (file_id, title, category, genre) VALUES (%s, %s, %s, %s);",
+                (file_id, title, category, genre)
+            )
+            self.connection.commit()
+            return True
+        except Exception as e:
+            print(f"[DB ERROR] add_media(): {e}")
+            self.connection.rollback()
             return False
-        self.cursor.execute(
-            "INSERT INTO media (file_id, title, category, genre) VALUES (%s, %s, %s, %s);",
-            (file_id, title, category, genre)
-        )
-        self.connection.commit()
-        return True
 
     def get_files_by_category(self, category):
-        self.cursor.execute(
-            "SELECT id, file_id, title, genre FROM media WHERE category = %s;", (category,)
-        )
-        return self.cursor.fetchall()
+        try:
+            self.cursor.execute(
+                "SELECT id, file_id, title, genre FROM media WHERE category = %s;", (category,)
+            )
+            return self.cursor.fetchall()
+        except Exception as e:
+            print(f"[DB ERROR] get_files_by_category(): {e}")
+            self.connection.rollback()
+            return []
 
     def delete_file(self, file_id):
-        self.cursor.execute("DELETE FROM media WHERE id = %s;", (file_id,))
-        self.connection.commit()
-        return self.cursor.rowcount > 0
+        try:
+            self.cursor.execute("DELETE FROM media WHERE id = %s;", (file_id,))
+            self.connection.commit()
+            return self.cursor.rowcount > 0
+        except Exception as e:
+            print(f"[DB ERROR] delete_file(): {e}")
+            self.connection.rollback()
+            return False
 
     def search_media_id(self, id, category):
-        self.cursor.execute(
-            "SELECT file_id, title, genre FROM media WHERE id = %s AND category = %s;",
-            (id, category)
-        )
-        return self.cursor.fetchone()
+        try:
+            self.cursor.execute(
+                "SELECT file_id, title, genre FROM media WHERE id = %s AND category = %s;",
+                (id, category)
+            )
+            return self.cursor.fetchone()
+        except Exception as e:
+            print(f"[DB ERROR] search_media_id(): {e}")
+            self.connection.rollback()
+            return None
 
     def search_media_title(self, title, category):
-        self.cursor.execute(
-            "SELECT file_id, title, genre FROM media WHERE title ILIKE %s AND category = %s;",
-            (f"%{title}%", category)
-        )
-        return self.cursor.fetchall()
+        try:
+            self.cursor.execute(
+                "SELECT file_id, title, genre FROM media WHERE title ILIKE %s AND category = %s;",
+                (f"%{title}%", category)
+            )
+            return self.cursor.fetchall()
+        except Exception as e:
+            print(f"[DB ERROR] search_media_title(): {e}")
+            self.connection.rollback()
+            return []
 
     def search_media_genre(self, genre, category):
-        self.cursor.execute(
-            "SELECT file_id, title, genre FROM media WHERE genre ILIKE %s AND category = %s;",
-            (f"%{genre}%", category)
-        )
-        return self.cursor.fetchall()
+        try:
+            self.cursor.execute(
+                "SELECT file_id, title, genre FROM media WHERE genre ILIKE %s AND category = %s;",
+                (f"%{genre}%", category)
+            )
+            return self.cursor.fetchall()
+        except Exception as e:
+            print(f"[DB ERROR] search_media_genre(): {e}")
+            self.connection.rollback()
+            return []
 
 
 # ✅ Instantiate Repos
