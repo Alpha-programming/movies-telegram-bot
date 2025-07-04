@@ -89,3 +89,9 @@ def more_button_genre(category, count, total):
         ]
     )
     return keyboard
+
+def follow_channel_button():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📢 Join Channel", url="https://t.me/@moviesfreewatch7")],
+        [InlineKeyboardButton(text="✅ I've Joined", callback_data="check_subscription")]
+    ])

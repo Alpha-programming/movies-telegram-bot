@@ -1,9 +1,11 @@
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
-from aiogram import Router, F
+from aiogram import Router, F,Bot
 from misc.state import Username, AddUsername, AddMediaState, IdMediaSearchState
 from keyboards.inline import main_admin, delete_button, admin_panel, add_files, delete_data, delete_files, more_button, more_button_title, more_button_genre, username
 from database.database import admin_repo, media_repo
+from keyboards.reply import start_kb
+from .check_sub import is_user_subscribed
 
 router = Router()
 
@@ -236,7 +238,7 @@ async def more_search(call: CallbackQuery, state: FSMContext):
 
     response_text = f"🎬 **More {category.capitalize()}**\n\n"
     for data in media_list[count:finish_count]:
-        response_text += f"📌 **ID:** `{data[0]}`\n🎥 **Title:** {data[2]}\n\n"
+        response_text += f"📌 **ID:** `{data[0]}`\n🎥 **Title:** {data[2]}\n\n Genre: {data[3]}\n\n"
 
     await call.message.answer(text=response_text, reply_markup=more_button(category, finish_count, total))
 
@@ -284,3 +286,11 @@ async def extra_genre_search(call: CallbackQuery, state: FSMContext):
         await call.message.answer_video(file_id, caption=f"🎬 {title}\n🎭 Genre: {genre}")
     if total > finish_count:
         await call.message.answer(text='🔁 More results available:', reply_markup=more_button_genre(category, finish_count, total))
+
+@router.callback_query(F.data == "check_subscription")
+async def check_subscription(call: CallbackQuery, bot: Bot):
+    if await is_user_subscribed(bot, call.from_user.id):
+        await call.message.edit_text("✅ Thank you! You can now use the bot.")  # no reply_markup here
+        await call.message.answer("Welcome back!", reply_markup=start_kb())  # send reply keyboard in a new message
+    else:
+        await call.answer("❌ You're still not subscribed.", show_alert=True)
