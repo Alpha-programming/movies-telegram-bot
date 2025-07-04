@@ -238,7 +238,7 @@ async def more_search(call: CallbackQuery, state: FSMContext):
 
     response_text = f"🎬 **More {category.capitalize()}**\n\n"
     for data in media_list[count:finish_count]:
-        response_text += f"📌 **ID:** `{data[0]}`\n🎥 **Title:** {data[2]}\n\n Genre: {data[3]}\n\n"
+        response_text += f"📌 **ID:** `{data[0]}`\n🎥 **Title:** {data[2]}\n🎭Genre: {data[3]}\n\n"
 
     await call.message.answer(text=response_text, reply_markup=more_button(category, finish_count, total))
 
